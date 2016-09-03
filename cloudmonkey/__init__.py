@@ -1,3 +1,5 @@
+from __future__ import print_function
+from __future__ import absolute_import
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,8 +18,8 @@
 # under the License.
 
 try:
-    from config import __version__, __description__
-    from config import __maintainer__, __maintaineremail__
-    from config import __project__, __projecturl__, __projectemail__
-except ImportError, e:
-    print e
+    from .config import __version__, __description__
+    from .config import __maintainer__, __maintaineremail__
+    from .config import __project__, __projecturl__, __projectemail__
+except ImportError as e:
+    print(e)

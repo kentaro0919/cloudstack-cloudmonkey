@@ -16,6 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from __future__ import print_function
+
+from functools import reduce
+
+from future import standard_library
+
+standard_library.install_aliases()
 __version__ = "5.3.3"
 __description__ = "Command Line Interface for Apache CloudStack"
 __maintainer__ = "The Apache CloudStack Team"
@@ -28,10 +35,10 @@ try:
     import os
     import sys
 
-    from ConfigParser import ConfigParser
+    from configparser import ConfigParser
     from os.path import expanduser
-except ImportError, e:
-    print "ImportError", e
+except ImportError as e:
+    print("ImportError", e)
 
 param_type = ['boolean', 'date', 'float', 'integer', 'short', 'list',
               'long', 'object', 'map', 'string', 'tzdate', 'uuid']
@@ -83,19 +90,19 @@ def write_config(get_attr, config_file):
     if os.path.exists(config_file):
         try:
             with open(config_file, 'r') as cfg:
-                config.readfp(cfg)
-        except IOError, e:
-            print "Error: config_file not found", e
+                config.read_file(cfg)
+        except IOError as e:
+            print("Error: config_file not found", e)
 
     profile = None
     try:
         profile = get_attr('profile')
-    except AttributeError, e:
+    except AttributeError as e:
         pass
     if profile is None or profile == '':
         profile = default_profile_name
     if profile in mandatory_sections:
-        print "Server profile name cannot be '%s'" % profile
+        print("Server profile name cannot be '%s'" % profile)
         sys.exit(1)
 
     has_profile_changed = False
@@ -112,18 +119,18 @@ def write_config(get_attr, config_file):
             try:
                 config.add_section(section)
                 if section not in mandatory_sections:
-                    for key in default_profile.keys():
+                    for key in list(default_profile.keys()):
                         config.set(section, key, default_profile[key])
                 else:
-                    for key in config_fields[section].keys():
+                    for key in list(config_fields[section].keys()):
                         config.set(section, key, config_fields[section][key])
-            except ValueError, e:
-                print "Server profile name cannot be", profile
+            except ValueError as e:
+                print("Server profile name cannot be", profile)
                 sys.exit(1)
         if section in mandatory_sections:
-            section_keys = config_fields[section].keys()
+            section_keys = list(config_fields[section].keys())
         else:
-            section_keys = default_profile.keys()
+            section_keys = list(default_profile.keys())
         for key in section_keys:
             try:
                 if not (has_profile_changed and section == profile):
@@ -141,22 +148,22 @@ def read_config(get_attr, set_attr, config_file):
     if not os.path.exists(config_dir):
         os.makedirs(config_dir)
 
-    config_options = reduce(lambda x, y: x + y, map(lambda x:
-                            config_fields[x].keys(), config_fields.keys()))
-    config_options += default_profile.keys()
+    config_options = reduce(
+        lambda x, y: x + y, [list(config_fields[x].keys()) for x in list(config_fields.keys())])
+    config_options += list(default_profile.keys())
 
     config = ConfigParser()
     if os.path.exists(config_file):
         try:
             with open(config_file, 'r') as cfg:
                 config.readfp(cfg)
-        except IOError, e:
-            print "Error: config_file not found", e
+        except IOError as e:
+            print("Error: config_file not found", e)
     else:
         config = write_config(get_attr, config_file)
-        print "Welcome! Use the `set` command to configure options"
-        print "Config file:", config_file
-        print "After setting up, run the `sync` command to sync apis\n"
+        print("Welcome! Use the `set` command to configure options")
+        print("Config file:", config_file)
+        print("After setting up, run the `sync` command to sync apis\n")
 
     missing_keys = []
     if config.has_option('core', 'profile'):
@@ -166,32 +173,32 @@ def read_config(get_attr, set_attr, config_file):
         profile = default_profile_name
 
     if profile is None or profile == '' or profile in mandatory_sections:
-        print "Server profile cannot be", profile
+        print("Server profile cannot be", profile)
         sys.exit(1)
 
-    set_attr("profile_names", filter(lambda x: x != "core" and x != "ui",
-                                     config.sections()))
+    set_attr("profile_names", [
+             x for x in config.sections() if x != "core" and x != "ui"])
 
     if not config.has_section(profile):
-        print ("Selected profile (%s) does not exist," +
-               " using default values") % profile
+        print(("Selected profile (%s) does not exist," +
+               " using default values") % profile)
         try:
             config.add_section(profile)
-        except ValueError, e:
-            print "Server profile name cannot be", profile
+        except ValueError as e:
+            print("Server profile name cannot be", profile)
             sys.exit(1)
-        for key in default_profile.keys():
+        for key in list(default_profile.keys()):
             config.set(profile, key, default_profile[key])
 
     for section in (mandatory_sections + [profile]):
         if section in mandatory_sections:
-            section_keys = config_fields[section].keys()
+            section_keys = list(config_fields[section].keys())
         else:
-            section_keys = default_profile.keys()
+            section_keys = list(default_profile.keys())
         for key in section_keys:
             try:
                 set_attr(key, config.get(section, key))
-            except Exception, e:
+            except Exception as e:
                 if section in mandatory_sections:
                     set_attr(key, config_fields[section][key])
                 else:
@@ -202,8 +209,8 @@ def read_config(get_attr, set_attr, config_file):
                 set_attr(key, get_attr('prompt').strip() + " ")
 
     if len(missing_keys) > 0:
-        print "Missing configuration was set using default values for keys:"
-        print "`%s` in %s" % (', '.join(missing_keys), config_file)
+        print("Missing configuration was set using default values for keys:")
+        print("`%s` in %s" % (', '.join(missing_keys), config_file))
         write_config(get_attr, config_file)
 
     return config_options

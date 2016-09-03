@@ -17,6 +17,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from __future__ import print_function
+
+from builtins import filter, next, str, zip
+
+from future import standard_library
+# Disable HTTPS verification warnings.
+from requests.packages import urllib3
+
+standard_library.install_aliases()
 try:
     import base64
     import hashlib
@@ -27,20 +36,22 @@ try:
     import ssl
     import sys
     import time
-    import urllib
-    import urllib2
+    import urllib.request
+    import urllib.parse
+    import urllib.error
+    import urllib.request
+    import urllib.error
+    import urllib.parse
 
     from datetime import datetime, timedelta
     from requests_toolbelt import SSLAdapter
-    from urllib2 import HTTPError, URLError
-except ImportError, e:
-    print "Import error in %s : %s" % (__name__, e)
+    from urllib.error import HTTPError, URLError
+except ImportError as e:
+    print("Import error in %s : %s" % (__name__, e))
     import sys
     sys.exit()
 
 
-# Disable HTTPS verification warnings.
-from requests.packages import urllib3
 urllib3.disable_warnings()
 
 
@@ -74,7 +85,7 @@ def login(url, username, password, domain="/", verifysslcert=False):
 
     try:
         resp = session.post(url, params=args, verify=verifysslcert)
-    except requests.exceptions.ConnectionError, e:
+    except requests.exceptions.ConnectionError as e:
         writeError("Connection refused by server: %s" % e)
         return None, None
 
@@ -182,9 +193,9 @@ def make_request(command, args, logger, url, credentials, expires,
         expirationtime = datetime.utcnow() + timedelta(seconds=int(expires))
         args["expires"] = expirationtime.strftime('%Y-%m-%dT%H:%M:%S+0000')
 
-    for key in args.keys():
+    for key in list(args.keys()):
         value = args[key]
-        if isinstance(value, unicode):
+        if isinstance(value, str):
             value = value.encode("utf-8")
         args[key] = value
         if not key:
@@ -197,25 +208,27 @@ def make_request(command, args, logger, url, credentials, expires,
         try:
             return make_request_with_password(command, args, logger, url,
                                               credentials, verifysslcert)
-        except (requests.exceptions.ConnectionError, Exception), e:
+        except (requests.exceptions.ConnectionError, Exception) as e:
             return None, e
 
     def sign_request(params, secret_key):
-        request = zip(params.keys(), params.values())
+        request = list(zip(list(params.keys()), list(params.values())))
         request.sort(key=lambda x: x[0].lower())
         hash_str = "&".join(
             ["=".join(
                 [r[0].lower(),
-                 urllib.quote_plus(str(r[1]), safe="*").lower()
+                 urllib.parse.quote_plus(str(r[1]), safe="*").lower()
                  .replace("+", "%20").replace("%3A", ":")]
             ) for r in request]
         )
-        return base64.encodestring(hmac.new(secret_key, hash_str,
-                                   hashlib.sha1).digest()).strip()
-
+        return base64.encodestring(hmac.new(secret_key.encode('utf-8'),
+                                            hash_str.encode('utf-8'),
+                                            hashlib.sha1).digest()).strip()
+    print(args)
     args['apiKey'] = credentials['apikey']
+    print(args)
     args["signature"] = sign_request(args, credentials['secretkey'])
-
+    print(args)
     session = requests.Session()
     session.mount('https://', SSLAdapter(ssl.PROTOCOL_TLSv1))
 
@@ -231,9 +244,9 @@ def make_request(command, args, logger, url, credentials, expires,
         elif response.status_code != 200 and response.status_code != 401:
             error = "{0}: {1}".format(response.status_code,
                                       response.headers.get('X-Description'))
-    except requests.exceptions.ConnectionError, e:
+    except requests.exceptions.ConnectionError as e:
         return None, "Connection refused by server: %s" % e
-    except Exception, pokemon:
+    except Exception as pokemon:
         error = pokemon.message
 
     logger_debug(logger, "Response received: %s" % result)
@@ -263,7 +276,7 @@ def monkeyrequest(command, args, isasync, asyncblock, logger, url,
     def process_json(response):
         try:
             response = json.loads(response, "utf-8")
-        except ValueError, e:
+        except ValueError as e:
             logger_debug(logger, "Error processing json: %s" % e)
             writeError("Error processing json: %s" % e)
             response = None
@@ -274,12 +287,13 @@ def monkeyrequest(command, args, isasync, asyncblock, logger, url,
     if not response or not isinstance(response, dict):
         return response, error
 
-    m = list(v for v in response.keys() if 'response' in v.lower())
+    m = list(v for v in list(response.keys()) if 'response' in v.lower())
     if not m:
         return response, 'Invalid response received: %s' % response
 
     isasync = isasync and (asyncblock == "true" or asyncblock == "True")
-    responsekey = filter(lambda x: 'response' in x, response.keys())[0]
+    responsekey = list(
+        filter(lambda x: 'response' in x, list(response.keys())))[0]
 
     if isasync and 'jobid' in response[responsekey]:
         jobid = response[responsekey]['jobid']
@@ -292,7 +306,7 @@ def monkeyrequest(command, args, isasync, asyncblock, logger, url,
         while timeout > 0:
             interval = 2
             while interval > 0:
-                sys.stdout.write(u"%s\r" % cursor.next())
+                sys.stdout.write(u"%s\r" % next(cursor))
                 sys.stdout.flush()
                 time.sleep(0.1)
                 interval -= 0.1
@@ -305,7 +319,8 @@ def monkeyrequest(command, args, isasync, asyncblock, logger, url,
                 return response, error
 
             response = process_json(response)
-            responsekeys = filter(lambda x: 'response' in x, response.keys())
+            responsekeys = [x for x in list(
+                response.keys()) if 'response' in x]
 
             if len(responsekeys) < 1:
                 continue

@@ -16,6 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from __future__ import print_function
+
 try:
     from pygments import highlight
     from pygments.console import ansiformat
@@ -24,8 +26,8 @@ try:
     from pygments.token import *
 
     import sys
-except ImportError, e:
-    print e
+except ImportError as e:
+    print("ImportError", e)
 
 
 MONKEY_COLORS = {
@@ -88,6 +90,7 @@ class MonkeyLexer(RegexLexer):
 
 
 class MonkeyFormatter(Formatter):
+
     def __init__(self, **options):
         Formatter.__init__(self, **options)
         self.colorscheme = get_colorscheme()
@@ -116,8 +119,8 @@ class MonkeyFormatter(Formatter):
 def monkeyprint(text):
     fmter = MonkeyFormatter()
     lexer = MonkeyLexer()
-    lexer.encoding = 'utf-8'
-    fmter.encoding = 'utf-8'
+    #lexer.encoding = 'utf-8'
+    #fmter.encoding = 'utf-8'
     if text.startswith("Error"):
         highlight(text, lexer, fmter, sys.stderr)
     else:
